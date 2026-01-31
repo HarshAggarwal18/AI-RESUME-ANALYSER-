@@ -1,53 +1,85 @@
 # 🚀 Take It Online: Migrating Spring AI to Groq Cloud
 
-This guide will help you migrate your Spring Boot application from using a local Ollama instance to the cloud-based Groq API. This is perfect for deploying your app to Render, as it removes the need for a heavy local AI server.
+This guide explains how to migrate your Spring Boot application from a local Ollama instance to the cloud-based **Groq API**. It also covers how to properly handle your API keys locally (using `.env`) and in production (Render).
+
+---
 
 ## 📋 Prerequisites
 
 1.  **Groq Account**: Sign up at [console.groq.com](https://console.groq.com/).
-2.  **API Key**: Create a new API Key in the Groq console. Copy it immediately (you won't see it again).
+2.  **API Key**: Create a new API Key in the Groq console. Copy it immediately.
 
 ---
 
 ## 🛠️ Step 1: Update Dependencies (`pom.xml`)
 
-We need to switch from the **Ollama** starter to the **OpenAI** starter. Spring AI uses the `openai` client to talk to Groq because Groq is API-compatible.
+We need two things:
+1.  **OpenAI Starter**: Spring AI uses the OpenAI client to talk to Groq.
+2.  **Spring Dotenv**: To automatically load your `.env` file locally.
 
-**Remove or Comment out:**
+**Modify your `pom.xml` dependencies:**
 
 ```xml
-<!-- ❌ Remove Ollama -->
+<!-- ❌ Remove or Comment out Ollama -->
+<!--
 <dependency>
     <groupId>org.springframework.ai</groupId>
     <artifactId>spring-ai-starter-model-ollama</artifactId>
 </dependency>
-```
+-->
 
-**Add:**
-
-```xml
 <!-- ✅ Add OpenAI (Compatible with Groq) -->
 <dependency>
     <groupId>org.springframework.ai</groupId>
-    <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+    <artifactId>spring-ai-starter-model-openai</artifactId>
+</dependency>
+
+<!-- ✅ Add Spring Dotenv (Loads .env properties) -->
+<dependency>
+    <groupId>me.paulschwarz</groupId>
+    <artifactId>spring-dotenv</artifactId>
+    <version>4.0.0</version>
 </dependency>
 ```
 
 ---
 
-## ⚙️ Step 2: Configure `application.properties`
+## ⚙️ Step 2: Configure Environment Variables
 
-Update your configuration to point to Groq's servers instead of localhost.
+### 🏡 Local Development (The `.env` file)
 
-**Comment out Ollama settings:**
+1.  **Create a file named `.env`** in the root of your project (same level as `pom.xml`).
+2.  **Add your API key** to it:
 
-```properties
-#ollama
-#spring.ai.ollama.base-url=http://localhost:11434
-#spring.ai.ollama.chat.options.model=qwen2.5:0.5b-instruct
-```
+    ```properties
+    GROQ_API_KEY=gsk_your_actual_key_here
+    ```
 
-**Add Groq (OpenAI) settings:**
+3.  **Ensure `.env` is ignored by Git**:
+    Check your `.gitignore` file and ensure it contains `.env`. This prevents your secret key from being leaked.
+
+    ```gitignore
+    .env
+    ```
+
+**How it works:** thanks to the `spring-dotenv` dependency, when you run the app locally, it will automatically read this file and make `GROQ_API_KEY` available to Spring Boot.
+
+### ☁️ Production / Render Deployment
+
+**IMPORTANT:** The `.env` file is **NOT** uploaded to Render (because it's git-ignored). You must manually configure the environment variable on the server.
+
+1.  Go to your **Service Dashboard** on Render.
+2.  Click the **Environment** tab.
+3.  Click **Add Environment Variable**.
+4.  **Key**: `GROQ_API_KEY`
+5.  **Value**: `gsk_your_actual_key_here` (Copy from Groq console)
+6.  Save changes. Render will redeploy your service.
+
+---
+
+## ⚙️ Step 3: Configure `application.properties`
+
+Update your configuration to use the variable we just set up.
 
 ```properties
 # 🚀 Groq Configuration
@@ -55,42 +87,27 @@ spring.ai.openai.base-url=https://api.groq.com/openai
 spring.ai.openai.api-key=${GROQ_API_KEY}
 spring.ai.openai.chat.options.model=llama3-70b-8192
 spring.ai.openai.chat.options.temperature=0.7
+
+# Disable Ollama (if present)
+# spring.ai.ollama.base-url=http://localhost:11434
 ```
 
-> **Note:**
-> *   `llama3-70b-8192` is a powerful, fast model on Groq. You can also use `llama3-8b-8192` or `mixtral-8x7b-32768`.
-> *   `${GROQ_API_KEY}` tells Spring Boot to look for an environment variable. **DO NOT** hardcode your key in the file if you are pushing to valid git repo.
-
 ---
 
-## ☁️ Step 3: Deployment Configure (Render)
+## 🧪 Verification & Troubleshooting
 
-When you deploy to Render (or run locally with the new config), you need to provide the authentication key.
+### Local Run
+Run `mvn spring-boot:run`.
+- **Success**: App starts, and logs show no errors regarding missing API keys.
+- **Micro-test**: If you have a test controller, hit the endpoint. It should respond using Groq.
+- **Failure**: If you see `${GROQ_API_KEY}` in the error, it means the variable wasn't resolved. Check if `spring-dotenv` is in `pom.xml` and `.env` exists in the project root.
 
-### **For Local Testing (IntelliJ/Terminal):**
-You need to set the environment variable.
-*   **IntelliJ**: Run Configuration -> Environment Variables -> Add `GROQ_API_KEY=gsk_...`
-*   **Terminal (PowerShell)**: `$env:GROQ_API_KEY="gsk_..."` then run `mvn spring-boot:run`
-
-### **For Render Deployment:**
-
-1.  Go to your **Service Dashboard** on Render.
-2.  Click **Environment** tab.
-3.  Click **Add Environment Variable**.
-4.  **Key**: `GROQ_API_KEY`
-5.  **Value**: `gsk_your_actual_key_here`
-6.  Save changes. Render will likely redeploy.
+### Render Deployment
+- **401 Unauthorized**: You forgot to set the Environment Variable in the Render Dashboard, or the key is invalid.
+- **404 Not Found**: Ensure `spring.ai.openai.base-url` is exactly `https://api.groq.com/openai`.
 
 ---
-
-## 🧪 Verification
-
-Once deployed, your `ResumeParserService` and `AIAnalyzerService` will automatically send requests to Groq instead of your local machine.
-
-*   **API Latency**: Groq is extremely fast, so you should see much faster responses than local Ollama!
-*   **Model**: Ensure the model name in `application.properties` exists on Groq (check [Groq Models](https://console.groq.com/docs/models)).
-
-### Troubleshooting
-*   **401 Unauthorized**: Check your API Key.
-*   **404 Not Found**: Check the `spring.ai.openai.base-url` is exactly `https://api.groq.com/openai`.
-*   **Model not found**: Check that `spring.ai.openai.chat.options.model` matches a valid Groq model name exactly.
+**Summary**:
+- **Local**: Helper library reads `.env` -> Spring Boot sees `GROQ_API_KEY`.
+- **Render**: Dashboard injection -> Spring Boot sees `GROQ_API_KEY`.
+- **Code**: `application.properties` just uses `${GROQ_API_KEY}` and doesn't care where it came from.

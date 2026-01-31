@@ -22,8 +22,7 @@ public class ResumeAnalysisController {
     public ResumeAnalysisController(
             ResumeParserService resumeParserService,
             JobService jobService,
-            AIAnalyzerService aiAnalyzerService
-    ) {
+            AIAnalyzerService aiAnalyzerService) {
         this.resumeParserService = resumeParserService;
         this.jobService = jobService;
         this.aiAnalyzerService = aiAnalyzerService;
@@ -50,8 +49,7 @@ public class ResumeAnalysisController {
                         job.getJobType(),
                         job.getExperience(),
                         job.getDescription(),
-                        job.getSkillsRequired()
-                );
+                        job.getSkillsRequired());
 
                 AIRequestDTO request = new AIRequestDTO(resume, jobDTO);
                 AnalysisResultDTO result = aiAnalyzerService.analyze(request);
