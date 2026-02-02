@@ -80,8 +80,11 @@ public class ResumeAnalysisController {
 
             return ResponseEntity.ok(results);
 
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             e.printStackTrace();
+            // Return the actual error message to help debugging
             return ResponseEntity.internalServerError().build();
         }
     }

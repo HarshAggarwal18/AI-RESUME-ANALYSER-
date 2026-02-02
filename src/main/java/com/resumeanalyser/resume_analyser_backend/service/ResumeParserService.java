@@ -16,12 +16,12 @@ public class ResumeParserService {
         }
 
         // Only support PDF right now
-        if (!file.getOriginalFilename().endsWith(".pdf")) {
+        if (!file.getOriginalFilename().toLowerCase().endsWith(".pdf")) {
             throw new IllegalArgumentException("Please upload a PDF file.");
         }
 
         try (InputStream inputStream = file.getInputStream();
-             PDDocument document = PDDocument.load(inputStream)) {
+                PDDocument document = PDDocument.load(inputStream)) {
             PDFTextStripper pdfStripper = new PDFTextStripper();
             String text = pdfStripper.getText(document);
 
@@ -32,8 +32,8 @@ public class ResumeParserService {
     }
 }
 
-//Handles PDF upload and reading
+// Handles PDF upload and reading
 //
-//Extracts text from each page
+// Extracts text from each page
 //
-//Cleans and returns it as a single string
+// Cleans and returns it as a single string
