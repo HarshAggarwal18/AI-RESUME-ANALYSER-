@@ -39,22 +39,44 @@ public class ResumeAnalysisController {
             List<Job> jobs = jobService.getAllJobs();
 
             // 3️⃣ Prepare DTOs and Analyze
-            List<AnalysisResultDTO> results = new ArrayList<>();
-            for (Job job : jobs) {
-                JobDTO jobDTO = new JobDTO(
-                        job.getId(),
-                        job.getJobTitle(),
-                        job.getCompany(),
-                        job.getLocation(),
-                        job.getJobType(),
-                        job.getExperience(),
-                        job.getDescription(),
-                        job.getSkillsRequired());
 
-                AIRequestDTO request = new AIRequestDTO(resume, jobDTO);
-                AnalysisResultDTO result = aiAnalyzerService.analyze(request);
-                results.add(result);
-            }
+            // --- OLD Code (Sequential) ---
+            /*
+             * List<AnalysisResultDTO> results = new ArrayList<>();
+             * for (Job job : jobs) {
+             * JobDTO jobDTO = new JobDTO(
+             * job.getId(),
+             * job.getJobTitle(),
+             * job.getCompany(),
+             * job.getLocation(),
+             * job.getJobType(),
+             * job.getExperience(),
+             * job.getDescription(),
+             * job.getSkillsRequired());
+             * 
+             * AIRequestDTO request = new AIRequestDTO(resume, jobDTO);
+             * AnalysisResultDTO result = aiAnalyzerService.analyze(request);
+             * results.add(result);
+             * }
+             */
+
+            // --- NEW Code (Parallel) ---
+            List<AnalysisResultDTO> results = jobs.parallelStream()
+                    .map(job -> {
+                        JobDTO jobDTO = new JobDTO(
+                                job.getId(),
+                                job.getJobTitle(),
+                                job.getCompany(),
+                                job.getLocation(),
+                                job.getJobType(),
+                                job.getExperience(),
+                                job.getDescription(),
+                                job.getSkillsRequired());
+
+                        AIRequestDTO request = new AIRequestDTO(resume, jobDTO);
+                        return aiAnalyzerService.analyze(request);
+                    })
+                    .toList();
 
             return ResponseEntity.ok(results);
 
